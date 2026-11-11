@@ -99,18 +99,50 @@ The repo ships two example packs:
 Make a test submission to grade:
 
 1. Create a folder, e.g. `C:\TA\Example Submissions`.
-2. Put one zip per student in it, named by roll number (`1001.zip`), containing their `.c` files in any folder layout.
+2. Put one zip per student in it, named by roll number (`cs23b1001.zip`), containing their `.c` files in any folder layout.
+   Step 5 shows how to make these from an LMS download.
 3. In the dashboard, go to **Grade**.
 4. Pick the pack and choose the folder. Results go to a sibling `… Check\Results` / `… Check\Reports` folder if one exists; otherwise set them under "Output folders".
 5. Click **Start grading**, then click a student to see compile errors, input / expected / actual output for each test, static checks and suggested marks.
 
 **Check:** a correct solution passes every test of the pack it was graded against.
 
-## 5. Google Classroom import (optional, recommended)
+## 5. Getting the submissions in
+
+The grader needs **one folder per lab** (e.g. `CD Lab 3 Submissions`) holding **one `.zip` (or one folder) per
+student, named by roll number**: `cs23b1001.zip`, `cs23b1002.zip`, and so on. The zip or folder name becomes the student ID
+everywhere: in results, marks and the CSV export. Inside a student's zip, any folder layout works, and zips inside zips are unpacked.
+
+### 5a. From the college LMS (Moodle-style "download all submissions")
+
+1. In the LMS, open the lab's assignment → **Download all submissions**. This gives one big zip.
+2. Convert it into per-student zips:
+
+   ```powershell
+   python scripts/import_lms_download.py "C:\Downloads\CD-Lab3-12345.zip" "C:\TA\CD Lab 3 Submissions" --dry-run
+   python scripts/import_lms_download.py "C:\Downloads\CD-Lab3-12345.zip" "C:\TA\CD Lab 3 Submissions"
+   ```
+
+   - Each top-level folder or file in the download is one student. Wrapper folders and `__MACOSX` junk are skipped.
+   - The **roll number** is searched for in the folder name, then in the file names inside it.
+     The default pattern matches IDs like `cs23b1001`. For another format, pass `--id-regex`, e.g. `--id-regex "(\d{4}CSE\d{4})"`.
+   - If a student's files carry no roll number, add them to a CSV with lines like `Asha Rao,cs23b1001`.
+     The name is the LMS display name, i.e. the part of the folder name before `_123_assignsubmission…`. Pass it with `--names names.csv`.
+   - The importer prints what it wrote and lists **Needs attention** entries (no roll number found, empty, duplicate).
+     It also writes `import_report.csv` into the output folder. Fix those entries and run it again.
+   - Inner zips are kept as they are; the grader unpacks them when grading.
+3. In the dashboard: **Grade** → pick the pack → choose that folder → **Start grading**.
+   Late or resubmitted work: download again and re-import into the same folder. A newer zip is re-graded automatically.
+
+> If the LMS has no bulk download, put each student's files into a zip (or a folder) named by roll number by hand.
+
+**Check:** the output folder has one `<roll>.zip` per student, and the Grade page shows them under "Not graded".
+
+### 5b. From Google Classroom (only if the course uses Classroom)
 
 The **Classroom** page downloads every turned-in submission and saves it as `<roll>.zip`. The roll number is taken from the
 student's e-mail with a regex, default `(\d{4})@`; change it on the page if the institute's e-mails differ.
-Re-syncing only fetches new submissions and resubmissions.
+Re-syncing only fetches new submissions and resubmissions. **Skip this section if submissions come from an LMS.**
 
 One-time setup. Every TA uses **their own** Google Cloud project; never reuse someone else's client file.
 
@@ -157,14 +189,16 @@ Marking (the 15-mark rubric, per pack under `marking`):
 
 - Comp 1 style /3, Comp 2 basic tests /3, Comp 3 logic and edge cases /6, Comp 4 comments and on-time /3.
 - Lenient marking is on by default: genuine attempts get floors, and marks round up. Set `"lenient": false` or change the floors under `marking`.
-- Late submissions (from Classroom) lose `late_penalty` in Comp 4.
+- Late submissions lose `late_penalty` in Comp 4. Only Classroom downloads record lateness; for LMS imports, apply late penalties by hand when confirming marks.
 - All marks are **suggestions**. The TA confirms them in the student drawer, and confirmed marks survive re-grading.
 
 ## 7. Daily use
 
 - **Start:** `.\.venv\Scripts\Activate.ps1`, then `python gui.py`.
-- **Grade:** pick the lab, then **Sync & grade** (or choose the folder and **Start grading**).
-  "Only new / ungraded" skips students who are already graded.
+- **Get submissions:**
+  - LMS: run `scripts/import_lms_download.py` into the lab's submissions folder (step 5a).
+  - Classroom: **Sync & grade**.
+- **Grade:** pick the lab, choose the folder, **Start grading**. "Only new / ungraded" skips students who are already graded.
 - **Review:**
   - **Needs review** lists build failures, crashes and tests that could not run.
   - **Re-check** on a student re-runs them with a fresh TA driver.
@@ -177,6 +211,8 @@ Marking (the 15-mark rubric, per pack under `marking`):
 |---|---|
 | `WinError 4551` / programs never run | Smart App Control. Install WSL gcc (step 1) and keep `EXEC_BACKEND=auto` or `wsl`. |
 | A lab shows no students in the app | Pick its submissions folder once in **Grade**. Folders are remembered on the server in `assignment_folders.json`. |
+| Importer: "no roll number found" for many students | Roll numbers aren't in the file names. Use `--names names.csv` (export the class list from the LMS as `name,roll`), or adjust `--id-regex`. |
+| Student IDs show up as long LMS folder names | The download was copied in without the importer. Run step 5a so every submission is `<roll>.zip`. |
 | "TA driver not available (… daily limit reached)" | The AI provider's daily quota ran out. Wait for it to reset (Groq resets over the day), or use a paid key. |
 | Many "TA driver failed to compile" | The student's code doesn't expose callable functions. Check by hand, or tighten the I/O format in the lab sheet so their own `main` can be tested directly. |
 | Tests pass for a clearly wrong program | The test uses the lenient `whitespace_normalized` mode. Switch that test to `lines`. |

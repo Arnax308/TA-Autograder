@@ -85,7 +85,9 @@ Only needed if a lab can't be changed to read stdin (§2). Today `TestCase` only
 | **Parallel grading** | Dashboard → Grade → *Output folders & performance* → workers (default 3). The server caps it at 6 (`grader/server.py`, `run_batch_grading_task`). Raise the cap to about the number of CPU cores if WSL keeps up. Compiling is the slow part. |
 | **AI quota** | The free Groq tier allows about 8k tokens per minute per model, plus a daily cap. One TA driver costs roughly 3–6k tokens. At hundreds of students, design labs per §2 so drivers are rarely needed. Keep `LLM_REVIEW=off`, or use a paid Groq / Gemini key and set `GROQ_TPM_LIMIT` to the plan's limit. The app spreads load across the configured Groq models and waits when it reaches the per-minute limit. |
 | **Re-runs are cheap** | Results are cached per student. Mode *Only new / ungraded* skips finished students. A resubmission (newer zip) is re-graded automatically. Saved TA drivers are reused; *Re-check* forces a new one. |
+| **Getting submissions (LMS)** | LMS bulk download → `python scripts/import_lms_download.py "<download.zip>" "<Lab> Submissions"` → one `<roll>.zip` per student (see [SETUP.md](../SETUP.md) §5a). With hundreds of students, run `--dry-run` first. Fix the **Needs attention** list (use `--names` for students without a roll number in their file names), then import. Re-importing a later download overwrites zips with newer ones, and the grader re-grades only those. |
 | **Folder layout** | Use `<Lab> Submissions` for the zips. The app finds a sibling `<Lab> Check/Results` and `<Lab> Check/Reports` automatically, and remembers each lab's folders in `assignment_folders.json`. |
+| **Late submissions** | LMS imports carry no submission times, so no automatic late penalty. Note late students from the LMS and adjust Comp 4 when confirming marks. |
 | **Disk** | `scratch/` holds extracted code and binaries, about 1 MB per student per lab. Between labs it is safe to delete `scratch/extracted` and `scratch/binaries`. Keep `drivers/` if you might re-check. |
 | **Timeouts** | `default_timeout_sec` per pack (2 s is plenty for most labs). Infinite loops are killed; memory is capped at 2 GiB per run in WSL. |
 | **Suspicious results** | After a batch, open **Needs review** first. Before trusting a pass, check that a deliberately wrong solution fails your tests, as the example pack shows. |
@@ -97,4 +99,5 @@ Only needed if a lab can't be changed to read stdin (§2). Today `TestCase` only
 2. Copy `assignments/example_compiler_design` and edit the questions, keywords and tests (mode `lines`).
 3. Produce the expected outputs by running a reference solution.
 4. Grade the reference solution (it should get full marks) and one deliberately buggy version (it should fail the right tests).
-5. Sync from Classroom, grade, look at **Needs review**, confirm marks, export.
+5. Download all submissions from the LMS and run `scripts/import_lms_download.py` into the lab's submissions folder.
+6. Grade, look at **Needs review**, confirm marks, export.

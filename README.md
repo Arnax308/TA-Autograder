@@ -8,6 +8,7 @@ The application is built for Teaching Assistants (TAs). It acts as an intelligen
 
 - **Setting it up on a new machine:** follow **[SETUP.md](SETUP.md)**. It is written step by step with a check after each step, so a coding agent can follow it.
 - **Compiler Design labs or a large class:** read **[docs/COMPILER_DESIGN.md](docs/COMPILER_DESIGN.md)**. It covers which comparison mode to use, how to write labs that grade cleanly at scale, and the flex/bison and input-file extensions.
+- **Submissions from a college LMS** (not Google Classroom): `scripts/import_lms_download.py` turns the LMS "download all submissions" zip into one `<roll>.zip` per student ([SETUP.md](SETUP.md) §5a).
 - **Example packs:** `assignments/example_c_basics` and `assignments/example_compiler_design`. Real course packs stay local; they are git-ignored because they hold reference answers.
 - **AI provider:** Groq (free tier) or Gemini, set in `.env` (see `.env.example`). The AI writes TA test drivers; the optional code review is controlled by `LLM_REVIEW`.
 
