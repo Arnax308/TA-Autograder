@@ -1,0 +1,175 @@
+{
+  "id": "example_compiler_design",
+  "title": "Example: Compiler design (lexer + parser)",
+  "description": "Shows how compiler-design labs are tested: the program reads source text on stdin and prints tokens / parse decisions in a fixed format. See docs/COMPILER_DESIGN.md.",
+  "default_language": "c",
+  "default_timeout_sec": 2.0,
+  "marking": {
+    "comp1_max": 3,
+    "comp2_max": 3,
+    "comp3_max": 6,
+    "comp4_max": 3,
+    "comp3_test_weight": 0.5,
+    "late_penalty": 1,
+    "unsimplified_penalty": 1
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "name": "Lexical analyzer",
+      "description": "Read a program from stdin and print every token on its own line as '<CLASS> <lexeme>'. Classes: KEYWORD (int float char if else while for return), IDENTIFIER ([A-Za-z_][A-Za-z0-9_]*), NUMBER ([0-9]+), OPERATOR (+ - * / = < > ! and the two-character ==, <=, >=, !=), SYMBOL (; , ( ) { }), UNKNOWN (any other single character). Whitespace separates tokens and is not printed.",
+      "language": "c",
+      "source_hints": [
+        "q1",
+        "lex",
+        "lexer",
+        "token"
+      ],
+      "content_keywords": [
+        "KEYWORD",
+        "IDENTIFIER",
+        "token"
+      ],
+      "compiler_flags": [
+        "-std=c11",
+        "-Wall"
+      ],
+      "timeout_sec": 2.0,
+      "static_checks": [
+        {
+          "rule_id": "keyword_table",
+          "rule_type": "contains_regex",
+          "description": "Compares words against a keyword list (strcmp or a keyword table)",
+          "pattern": "\\bstrn?cmp\\s*\\(|[Kk]eyword",
+          "min_count": 1,
+          "severity": "warning"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": "t1_declaration",
+          "description": "A declaration with an assignment",
+          "input_data": "int x = 42;\n",
+          "expected_output": "KEYWORD int\nIDENTIFIER x\nOPERATOR =\nNUMBER 42\nSYMBOL ;\n",
+          "comparison_mode": "lines",
+          "timeout_sec": 2.0,
+          "is_edge_case": false
+        },
+        {
+          "id": "t2_if_else",
+          "description": "if/else with comparison operators",
+          "input_data": "if (a >= 10) { b = a + 1; } else { b = 0; }\n",
+          "expected_output": "KEYWORD if\nSYMBOL (\nIDENTIFIER a\nOPERATOR >=\nNUMBER 10\nSYMBOL )\nSYMBOL {\nIDENTIFIER b\nOPERATOR =\nIDENTIFIER a\nOPERATOR +\nNUMBER 1\nSYMBOL ;\nSYMBOL }\nKEYWORD else\nSYMBOL {\nIDENTIFIER b\nOPERATOR =\nNUMBER 0\nSYMBOL ;\nSYMBOL }\n",
+          "comparison_mode": "lines",
+          "timeout_sec": 2.0,
+          "is_edge_case": false
+        },
+        {
+          "id": "t3_loop",
+          "description": "while loop and return",
+          "input_data": "while (i != n) i = i * 2;\nreturn i;\n",
+          "expected_output": "KEYWORD while\nSYMBOL (\nIDENTIFIER i\nOPERATOR !=\nIDENTIFIER n\nSYMBOL )\nIDENTIFIER i\nOPERATOR =\nIDENTIFIER i\nOPERATOR *\nNUMBER 2\nSYMBOL ;\nKEYWORD return\nIDENTIFIER i\nSYMBOL ;\n",
+          "comparison_mode": "lines",
+          "timeout_sec": 2.0,
+          "is_edge_case": false
+        },
+        {
+          "id": "t4_identifiers_like_keywords",
+          "description": "Edge: identifiers that start with a keyword",
+          "input_data": "int intx = format_1; float iff;\n",
+          "expected_output": "KEYWORD int\nIDENTIFIER intx\nOPERATOR =\nIDENTIFIER format_1\nSYMBOL ;\nKEYWORD float\nIDENTIFIER iff\nSYMBOL ;\n",
+          "comparison_mode": "lines",
+          "timeout_sec": 2.0,
+          "is_edge_case": true
+        },
+        {
+          "id": "t5_no_spaces",
+          "description": "Edge: tokens without spaces",
+          "input_data": "x=y+3*(z-1);\n",
+          "expected_output": "IDENTIFIER x\nOPERATOR =\nIDENTIFIER y\nOPERATOR +\nNUMBER 3\nOPERATOR *\nSYMBOL (\nIDENTIFIER z\nOPERATOR -\nNUMBER 1\nSYMBOL )\nSYMBOL ;\n",
+          "comparison_mode": "lines",
+          "timeout_sec": 2.0,
+          "is_edge_case": true
+        },
+        {
+          "id": "t6_unknown",
+          "description": "Edge: unknown characters",
+          "input_data": "a @ b # c\n",
+          "expected_output": "IDENTIFIER a\nUNKNOWN @\nIDENTIFIER b\nUNKNOWN #\nIDENTIFIER c\n",
+          "comparison_mode": "lines",
+          "timeout_sec": 2.0,
+          "is_edge_case": true
+        }
+      ]
+    },
+    {
+      "id": "q2",
+      "name": "Recursive-descent parser",
+      "description": "Recursive-descent parser for E -> T E', E' -> + T E' | e, T -> F T', T' -> * F T' | e, F -> ( E ) | id (id = an identifier). Input: N, then N expressions, one per line (spaces allowed). Print 'Accepted' or 'Rejected' for each line.",
+      "language": "c",
+      "source_hints": [
+        "q2",
+        "parser",
+        "rdp",
+        "descent"
+      ],
+      "content_keywords": [
+        "Accepted",
+        "Rejected"
+      ],
+      "compiler_flags": [
+        "-std=c11",
+        "-Wall"
+      ],
+      "timeout_sec": 2.0,
+      "static_checks": [
+        {
+          "rule_id": "recursive_functions",
+          "rule_type": "contains_regex",
+          "description": "Has a function for E and for T (or similar)",
+          "pattern": "\\b(void|int|bool)\\s+[ET]\\w*\\s*\\(",
+          "min_count": 2,
+          "severity": "warning"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": "t1_valid",
+          "description": "Valid expressions",
+          "input_data": "3\na+b\na*b+c\n(a+b)*c\n",
+          "expected_output": "Accepted\nAccepted\nAccepted\n",
+          "comparison_mode": "lines",
+          "timeout_sec": 2.0,
+          "is_edge_case": false
+        },
+        {
+          "id": "t2_invalid",
+          "description": "Invalid expressions",
+          "input_data": "3\na+\n*a\n(a+b\n",
+          "expected_output": "Rejected\nRejected\nRejected\n",
+          "comparison_mode": "lines",
+          "timeout_sec": 2.0,
+          "is_edge_case": false
+        },
+        {
+          "id": "t3_nested",
+          "description": "Edge: deep nesting",
+          "input_data": "2\n((((a))))\n((a+b)*(c+d))*e\n",
+          "expected_output": "Accepted\nAccepted\n",
+          "comparison_mode": "lines",
+          "timeout_sec": 2.0,
+          "is_edge_case": true
+        },
+        {
+          "id": "t4_spaces_and_ids",
+          "description": "Edge: spaces and longer identifiers",
+          "input_data": "2\n  sum + rate * time \nx y\n",
+          "expected_output": "Accepted\nRejected\n",
+          "comparison_mode": "lines",
+          "timeout_sec": 2.0,
+          "is_edge_case": true
+        }
+      ]
+    }
+  ]
+}

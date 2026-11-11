@@ -1,0 +1,132 @@
+{
+  "id": "example_c_basics",
+  "title": "Example: C basics",
+  "description": "Two tiny C programs that read stdin. Copy this folder to start a new lab pack.",
+  "default_language": "c",
+  "default_timeout_sec": 2.0,
+  "marking": {
+    "comp1_max": 3,
+    "comp2_max": 3,
+    "comp3_max": 6,
+    "comp4_max": 3,
+    "comp3_test_weight": 0.5,
+    "late_penalty": 1,
+    "unsimplified_penalty": 1
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "name": "Sum of N numbers",
+      "description": "Read n, then n integers. Print 'Sum: <total>'.",
+      "language": "c",
+      "source_hints": [
+        "q1",
+        "sum"
+      ],
+      "content_keywords": [
+        "\\bsum\\b"
+      ],
+      "compiler_flags": [
+        "-std=c11",
+        "-Wall"
+      ],
+      "timeout_sec": 2.0,
+      "static_checks": [
+        {
+          "rule_id": "uses_loop",
+          "rule_type": "contains_regex",
+          "description": "Uses a loop",
+          "pattern": "\\b(for|while)\\s*\\(",
+          "min_count": 1,
+          "severity": "warning"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": "t1_small",
+          "description": "Five positive numbers",
+          "input_data": "5\n1 2 3 4 5\n",
+          "expected_output": "Sum: 15\n",
+          "comparison_mode": "whitespace_normalized",
+          "timeout_sec": 2.0,
+          "is_edge_case": false
+        },
+        {
+          "id": "t2_mixed",
+          "description": "Positive and negative numbers",
+          "input_data": "4\n10 -3 7 -4\n",
+          "expected_output": "Sum: 10\n",
+          "comparison_mode": "whitespace_normalized",
+          "timeout_sec": 2.0,
+          "is_edge_case": false
+        },
+        {
+          "id": "t3_zero_count",
+          "description": "Edge: n = 0",
+          "input_data": "0\n",
+          "expected_output": "Sum: 0\n",
+          "comparison_mode": "whitespace_normalized",
+          "timeout_sec": 2.0,
+          "is_edge_case": true
+        },
+        {
+          "id": "t4_large",
+          "description": "Edge: large values (needs long long)",
+          "input_data": "3\n2000000000 2000000000 2000000000\n",
+          "expected_output": "Sum: 6000000000\n",
+          "comparison_mode": "whitespace_normalized",
+          "timeout_sec": 2.0,
+          "is_edge_case": true
+        }
+      ]
+    },
+    {
+      "id": "q2",
+      "name": "Palindrome check",
+      "description": "Read one word. Print 'Palindrome' or 'Not palindrome'.",
+      "language": "c",
+      "source_hints": [
+        "q2",
+        "palindrome"
+      ],
+      "content_keywords": [
+        "palindrome"
+      ],
+      "compiler_flags": [
+        "-std=c11",
+        "-Wall"
+      ],
+      "timeout_sec": 2.0,
+      "static_checks": [],
+      "test_cases": [
+        {
+          "id": "t1_yes",
+          "description": "A palindrome",
+          "input_data": "racecar\n",
+          "expected_output": "Palindrome\n",
+          "comparison_mode": "whitespace_normalized",
+          "timeout_sec": 2.0,
+          "is_edge_case": false
+        },
+        {
+          "id": "t2_no",
+          "description": "Not a palindrome",
+          "input_data": "hello\n",
+          "expected_output": "Not palindrome\n",
+          "comparison_mode": "whitespace_normalized",
+          "timeout_sec": 2.0,
+          "is_edge_case": false
+        },
+        {
+          "id": "t3_single",
+          "description": "Edge: single character",
+          "input_data": "a\n",
+          "expected_output": "Palindrome\n",
+          "comparison_mode": "whitespace_normalized",
+          "timeout_sec": 2.0,
+          "is_edge_case": true
+        }
+      ]
+    }
+  ]
+}

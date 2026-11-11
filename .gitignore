@@ -1,0 +1,44 @@
+# ---- Secrets: never commit
+.env
+.secrets/
+*client_secret*.json
+*token*.json
+
+# ---- Per-machine / per-course settings (contain course IDs, student e-mails, local paths)
+classroom.json
+classroom.json.tmp
+assignment_folders.json
+assignment_folders.json.tmp
+
+# ---- Student work and everything derived from it
+scratch/
+drivers/
+results/
+reports/
+logs/
+submissions/
+sample_submissions/*.zip
+*.zip
+
+# ---- Course assignment packs (they hold reference answers; keep them local).
+# Only the example packs are shared.
+assignments/*
+!assignments/example_*/
+
+# ---- Python / tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+.claude/settings.local.json
+
+# ---- OS / editors
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.exe
+*.o

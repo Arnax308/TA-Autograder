@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TA Autograder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/gui/app.css?v=10">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash
+    try { const t = localStorage.getItem("ta.theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">TA</div>
+        <div>
+          <div class="brand-name">Autograder</div>
+          <div class="brand-sub">C / C++ lab review</div>
+        </div>
+      </div>
+
+      <button class="nav-item" data-view="classroom"><span data-icon="inbox"></span>Classroom</button>
+      <button class="nav-item active" data-view="grade"><span data-icon="play"></span>Grade</button>
+      <button class="nav-item" data-view="assignments"><span data-icon="layers"></span>Assignments</button>
+      <button class="nav-item" data-view="generator"><span data-icon="sparkles"></span>Test generator</button>
+      <button class="nav-item" data-view="settings"><span data-icon="settings"></span>Settings</button>
+
+      <div class="sidebar-spacer"></div>
+
+      <div class="health" id="healthBox">
+        <div class="health-title">System</div>
+        <div class="health-row"><span class="dot" id="hCompiler"></span><span id="hCompilerText">Compiler…</span></div>
+        <div class="health-row"><span class="dot" id="hSandbox"></span><span id="hSandboxText">Sandbox…</span></div>
+        <div class="health-row"><span class="dot" id="hLlm"></span><span id="hLlmText">Gemini…</span></div>
+      </div>
+      <button class="nav-item theme-toggle" id="themeToggle"><span data-icon="moon"></span><span id="themeLabel">Theme</span></button>
+    </aside>
+
+    <main class="main">
+      <!-- ================= GRADE ================= -->
+      <section class="view" id="view-grade">
+        <div class="page-head">
+          <div>
+            <h1>Grade submissions</h1>
+            <p>Compile, run and review a folder of student archives. Final marks stay with you — this only gathers evidence.</p>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="run-grid">
+            <div class="field">
+              <label for="assignmentSelect">Assignment</label>
+              <select class="select" id="assignmentSelect"></select>
+            </div>
+            <div class="field">
+              <label for="submissionsPath">Submissions folder</label>
+              <div class="input-group">
+                <input class="input mono" id="submissionsPath" placeholder="Folder containing student .zip files" spellcheck="false">
+                <button class="btn" data-browse="submissionsPath" data-title="Select submissions folder"><span data-icon="folder"></span>Browse</button>
+              </div>
+            </div>
+            <div class="run-actions">
+              <button class="btn" id="syncGradeBtn" hidden title="Download new and resubmitted work from Google Classroom, then grade"><span data-icon="inbox"></span>Sync &amp; grade</button>
+              <button class="btn btn-primary" id="startBtn"><span data-icon="play"></span>Start grading</button>
+              <button class="btn btn-danger" id="cancelBtn" hidden><span data-icon="stop"></span>Cancel</button>
+            </div>
+          </div>
+
+          <div class="run-options">
+            <div class="field">
+              <span class="label">Mode</span>
+              <div class="segmented" id="modeSeg">
+                <button data-mode="default" class="active" title="Skip students that already have results">Only new / ungraded</button>
+                <button data-mode="rerun_all" title="Re-grade everyone from scratch">Re-grade all</button>
+                <button data-mode="rerun_llm" title="Keep compile/test results, redo only the Gemini review">Redo LLM review only</button>
+              </div>
+            </div>
+            <div class="hint" id="pathHint"></div>
+          </div>
+
+          <details class="disclosure">
+            <summary>Output folders &amp; performance</summary>
+            <div class="grid grid-3">
+              <div class="field">
+                <label for="reportsDir">Reports folder</label>
+                <div class="input-group">
+                  <input class="input mono" id="reportsDir" spellcheck="false">
+                  <button class="btn btn-icon" data-browse="reportsDir" data-title="Select reports folder" title="Browse"><span data-icon="folder"></span></button>
+                </div>
+              </div>
+              <div class="field">
+                <label for="resultsDir">Results (JSON) folder</label>
+                <div class="input-group">
+                  <input class="input mono" id="resultsDir" spellcheck="false">
+                  <button class="btn btn-icon" data-browse="resultsDir" data-title="Select results folder" title="Browse"><span data-icon="folder"></span></button>
+                </div>
+              </div>
+              <div class="field">
+                <label for="workersInput">Students graded in parallel</label>
+                <input class="input" id="workersInput" type="number" min="1" max="6" value="3">
+                <span class="hint">Folders are remembered per assignment.</span>
+              </div>
+            </div>
+          </details>
+
+          <div class="progress-wrap" id="progressPanel" hidden>
+            <div class="progress-top">
+              <span><strong id="progressLabel">Starting…</strong></span>
+              <span id="progressCount">0 / 0</span>
+            </div>
+            <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+            <div class="chips" id="currentChips"></div>
+            <details class="disclosure" id="logDisclosure">
+              <summary>Activity log</summary>
+              <div class="log-box" id="logBox"></div>
+            </details>
+          </div>
+        </div>
+
+        <div class="stats" id="statsRow">
+          <button class="stat" data-filter="all"><div class="stat-label">Submissions</div><div class="stat-value" id="statTotal">0</div></button>
+          <button class="stat" data-filter="pending"><div class="stat-label">Not graded</div><div class="stat-value" id="statPending">0</div></button>
+          <button class="stat" data-filter="clean"><div class="stat-label">Clean</div><div class="stat-value pass" id="statClean">0</div></button>
+          <button class="stat" data-filter="review"><div class="stat-label">Needs review</div><div class="stat-value warn" id="statReview">0</div></button>
+          <button class="stat" data-filter="compile"><div class="stat-label">Build failures</div><div class="stat-value fail" id="statCompile">0</div></button>
+          <button class="stat" data-filter="runtime"><div class="stat-label">Crashes / timeouts</div><div class="stat-value fail" id="statRuntime">0</div></button>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="toolbar">
+              <div class="search">
+                <span data-icon="search"></span>
+                <input class="input" id="searchInput" placeholder="Search student ID" spellcheck="false">
+              </div>
+              <div class="segmented" id="filterSeg">
+                <button data-filter="all" class="active">All</button>
+                <button data-filter="pending">Not graded</button>
+                <button data-filter="review">Needs review</button>
+                <button data-filter="clean">Clean</button>
+                <button data-filter="errors">Errors</button>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-sm" id="refreshBtn"><span data-icon="refresh"></span>Refresh</button>
+              <button class="btn btn-sm" id="exportBtn"><span data-icon="download"></span>Export CSV</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th class="sortable" data-sort="student">Student</th>
+                  <th class="sortable" data-sort="tests">Tests</th>
+                  <th>Build</th>
+                  <th>Run</th>
+                  <th class="num" title="Comp 1: coding conventions, naming, indentation">Style</th>
+                  <th class="num" title="Comp 2: basic test cases, expected output">Tests</th>
+                  <th class="num" title="Comp 3: logic, algorithm, border cases, validation">Logic</th>
+                  <th class="num" title="Comp 4: timely submission, proper comments">Comments</th>
+                  <th class="sortable num" data-sort="total" title="Suggested total; bold = confirmed by you">Total</th>
+                  <th class="sortable" data-sort="review">Review</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= CLASSROOM ================= -->
+      <section class="view" id="view-classroom" hidden>
+        <div class="page-head">
+          <div>
+            <h1>Google Classroom</h1>
+            <p>Download every student's submission straight from Classroom, saved as <span class="mono">&lt;roll&gt;.zip</span>. Syncing again only fetches new and resubmitted work.</p>
+          </div>
+          <div class="btn-row" id="crAccount"></div>
+        </div>
+
+        <div id="crSetup"></div>
+
+        <div id="crMain" hidden>
+          <div class="card card-pad">
+            <div class="grid grid-3">
+              <div class="field">
+                <label for="crCourse">Course</label>
+                <select class="select" id="crCourse"></select>
+              </div>
+              <div class="field">
+                <label for="crWork">Classwork</label>
+                <select class="select" id="crWork"></select>
+              </div>
+              <div class="field">
+                <label for="crAssignment">Grade with assignment pack</label>
+                <select class="select" id="crAssignment"></select>
+              </div>
+              <div class="field" style="grid-column: span 2">
+                <label for="crDest">Download folder</label>
+                <div class="input-group">
+                  <input class="input mono" id="crDest" placeholder="e.g. …\OOPS Lab\Week 5 Submissions" spellcheck="false">
+                  <button class="btn" data-browse="crDest" data-title="Select download folder"><span data-icon="folder"></span>Browse</button>
+                </div>
+                <span class="hint">This becomes the submissions folder on the Grade page for the chosen pack.</span>
+              </div>
+              <div class="field">
+                <label for="crPattern">Roll ID from email (regex)</label>
+                <input class="input mono" id="crPattern" spellcheck="false">
+                <span class="hint" id="crPatternHint">First capture group becomes the file name.</span>
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top: 14px;">
+              <button class="btn btn-primary" id="crLoadBtn"><span data-icon="refresh"></span>Load submissions</button>
+              <a class="btn btn-ghost" id="crOpenLink" target="_blank" rel="noopener" hidden>Open in Classroom ↗</a>
+            </div>
+          </div>
+
+          <div class="card" id="crTableCard" hidden>
+            <div class="card-head">
+              <div class="chips" id="crCounts" style="margin:0"></div>
+              <div class="btn-row">
+                <button class="btn btn-sm btn-ghost" id="crShowOthers" hidden></button>
+                <button class="btn btn-sm" id="crSelectedBtn">Download selected</button>
+                <button class="btn btn-sm btn-primary" id="crSyncBtn"><span data-icon="download"></span>Download new &amp; updated</button>
+                <button class="btn btn-sm" id="crGradeBtn" hidden><span data-icon="play"></span>Grade now</button>
+              </div>
+            </div>
+            <div class="progress-wrap" id="crProgress" hidden style="margin: 14px 20px 0;">
+              <div class="progress-top"><strong id="crProgressLabel">Starting…</strong><span id="crProgressCount"></span></div>
+              <div class="progress"><div class="progress-bar" id="crProgressBar"></div></div>
+              <details class="disclosure"><summary>Download log</summary><div class="log-box" id="crLog"></div></details>
+            </div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th style="width:32px"><input type="checkbox" id="crSelectAll" title="Select all submitted"></th>
+                    <th>Student</th>
+                    <th style="width:140px">Roll ID</th>
+                    <th>Status</th>
+                    <th>Attachments</th>
+                    <th>Local copy</th>
+                  </tr>
+                </thead>
+                <tbody id="crBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ASSIGNMENTS ================= -->
+      <section class="view" id="view-assignments" hidden>
+        <div class="page-head">
+          <div>
+            <h1>Assignments</h1>
+            <p>Weekly assignment packs: questions, compiler settings and the frozen test suites every student is graded against.</p>
+          </div>
+          <button class="btn btn-primary" id="newAssignmentBtn"><span data-icon="plus"></span>New assignment</button>
+        </div>
+        <div id="assignmentsList"></div>
+      </section>
+
+      <!-- ================= GENERATOR ================= -->
+      <section class="view" id="view-generator" hidden>
+        <div class="page-head">
+          <div>
+            <h1>Test generator</h1>
+            <p>Describe the problem and Gemini drafts normal and edge-case tests. Review them, then they are frozen so every student gets identical tests.</p>
+          </div>
+        </div>
+        <div class="card card-pad">
+          <div class="grid grid-3">
+            <div class="field">
+              <label for="genAssignment">Assignment</label>
+              <select class="select" id="genAssignment"></select>
+            </div>
+            <div class="field">
+              <label for="genQuestion">Question</label>
+              <select class="select" id="genQuestion"></select>
+            </div>
+            <div class="field">
+              <label for="genCount">Number of tests</label>
+              <input class="input" id="genCount" type="number" min="1" max="12" value="4">
+            </div>
+            <div class="field span-2" style="grid-column: 1 / -1;">
+              <label for="genPrompt">Problem statement</label>
+              <textarea class="textarea prose" id="genPrompt" rows="5" placeholder="e.g. Read two rational numbers as 'p q' pairs and print their sum and product reduced to lowest terms as 'Addition: a/b' and 'Multiplication: c/d'."></textarea>
+              <span class="hint">Be explicit about the input format and the exact output lines — tests compare against them.</span>
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top: 14px;">
+            <button class="btn btn-primary" id="generateBtn"><span data-icon="sparkles"></span>Generate tests</button>
+            <span class="hint" id="genHint"></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title" id="genListTitle">Current tests</h2>
+            <span class="pill" id="genListCount">0 tests</span>
+          </div>
+          <div class="card-pad" id="genList"></div>
+        </div>
+      </section>
+
+      <!-- ================= SETTINGS ================= -->
+      <section class="view" id="view-settings" hidden>
+        <div class="page-head">
+          <div>
+            <h1>Settings</h1>
+            <p>Where student code runs and which Gemini model reviews it. Folders are remembered per assignment on the Grade page.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">My students</h2><span class="card-sub" id="studentsNow"></span></div>
+          <div class="card-pad">
+            <div class="field">
+              <label for="studentsInput">Roll numbers you grade</label>
+              <div class="input-group">
+                <input class="input mono" id="studentsInput" placeholder="cs25b1089-cs25b1103, cs25b2001-cs25b2008" spellcheck="false">
+                <button class="btn btn-primary" id="saveStudentsBtn">Save</button>
+              </div>
+              <span class="hint">Ranges and single IDs separated by commas. Everyone else is skipped: not downloaded from Classroom, not compiled, and never sent to Gemini. Leave empty to include everyone.</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">Execution sandbox</h2><span class="card-sub" id="backendNow"></span></div>
+          <div class="card-pad">
+            <div id="sacCallout"></div>
+            <div id="backendOptions" style="margin-top: 12px;"></div>
+            <dl class="kv" id="toolchainInfo" style="margin-top: 16px;"></dl>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">AI assistant</h2><span class="card-sub" id="llmNow"></span></div>
+          <div class="card-pad">
+            <div class="grid grid-2">
+              <div class="field">
+                <label for="providerSelect">Provider</label>
+                <select class="select" id="providerSelect">
+                  <option value="groq">Groq</option>
+                  <option value="gemini">Google Gemini</option>
+                </select>
+                <span class="hint">Writes TA test drivers and (optionally) the qualitative review.</span>
+              </div>
+              <div class="field" style="justify-content:flex-end">
+                <label class="check"><input type="checkbox" id="llmReviewToggle"> LLM review of style, logic and comments</label>
+                <span class="hint">Off: Comp 1 and 4 come from code metrics and Comp 3 from tests and concept checks. Saves most tokens.</span>
+              </div>
+              <div class="field">
+                <label for="modelSelect">Model</label>
+                <select class="select" id="modelSelect"></select>
+                <span class="hint" id="modelHint">Loading available models…</span>
+              </div>
+              <div class="field">
+                <label for="apiKeyInput">API key</label>
+                <input class="input mono" id="apiKeyInput" type="password" autocomplete="off" placeholder="Leave blank to keep the current key">
+                <span class="hint" id="keyHint"></span>
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top: 14px;">
+              <button class="btn btn-primary" id="saveLlmBtn">Save AI settings</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Student inspector -->
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <div class="drawer-title-row">
+        <div>
+          <h2 class="drawer-title" id="drawerTitle">Student</h2>
+          <div class="drawer-meta" id="drawerMeta"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-sm" id="drawerRecheck"><span data-icon="refresh"></span>Re-check</button>
+          <button class="btn btn-sm" id="drawerCopy"><span data-icon="copy"></span>Copy report</button>
+          <button class="btn btn-sm btn-ghost btn-icon" id="drawerClose" title="Close (Esc)"><span data-icon="x"></span></button>
+        </div>
+      </div>
+      <div class="tabs" id="drawerTabs"></div>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
+
+  <div id="modalRoot"></div>
+  <div class="toasts" id="toasts"></div>
+
+  <script src="/gui/app.js?v=10"></script>
+</body>
+</html>
